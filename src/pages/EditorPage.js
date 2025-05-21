@@ -18,6 +18,7 @@ const EditorPage = () => {
     const { roomId } = useParams();
     const reactNavigator = useNavigate();
     const [clients, setClients] = useState([]);
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
 
     useEffect(() => {
         const init = async () => {
@@ -31,9 +32,17 @@ const EditorPage = () => {
                 reactNavigator('/');
             }
 
+            // Listen for invalid password
+            socketRef.current.on(ACTIONS.INVALID_PASSWORD, () => {
+                toast.error('Invalid password for this room');
+                reactNavigator('/');
+            });
+
+            // Emit join event with password
             socketRef.current.emit(ACTIONS.JOIN, {
                 roomId,
                 username: location.state?.username,
+                password: location.state?.password,
             });
 
             // Listening for joined event
@@ -44,6 +53,7 @@ const EditorPage = () => {
                         toast.success(`${username} joined the room.`);
                         console.log(`${username} joined`);
                     }
+                    setIsAuthenticated(true);
                     setClients(clients);
                     socketRef.current.emit(ACTIONS.SYNC_CODE, {
                         code: codeRef.current,
@@ -67,9 +77,10 @@ const EditorPage = () => {
         };
         init();
         return () => {
-            socketRef.current.disconnect();
-            socketRef.current.off(ACTIONS.JOINED);
-            socketRef.current.off(ACTIONS.DISCONNECTED);
+            socketRef.current?.disconnect();
+            socketRef.current?.off(ACTIONS.JOINED);
+            socketRef.current?.off(ACTIONS.DISCONNECTED);
+            socketRef.current?.off(ACTIONS.INVALID_PASSWORD);
         };
     }, []);
 
